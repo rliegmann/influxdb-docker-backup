@@ -1,0 +1,14 @@
+services:
+  influxdb-backup:
+    container_name: influxdb-backup       
+    build: 
+      context: .
+      dockerfile: Dockerfile    
+    volumes:
+            - ./data/current:/backups/current   #folder with last backups   
+            - ./data/archive:/backups/archive   #folder with archive backups        
+    environment:           
+            INFLUX_HOST: http://localhost:8086
+            INFLUX_ADMIN_TOKEN: gsjhfgsdhjkfgs3452356vpijpex
+            BACKUP_INTERVAL: 1m
+    
