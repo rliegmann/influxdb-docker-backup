@@ -61,8 +61,8 @@ services:
       dockerfile: Dockerfile
     command: restore
     volumes:
-      - influxdb-backup-current:/backups/current
-      - influxdb-backup-archive:/backups/archive
+      - ./test/temp/current:/backups/current
+      - ./test/temp/archive:/backups/archive
     environment:
        INFLUX_HOST: http://target:${INFLUXDB_HTTP_PORT}
        INFLUX_ADMIN_TOKEN: ${INFLUXDB_ADMIN_TOKEN}
