@@ -12,7 +12,7 @@ services:
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_ADMIN_TOKEN}
       INFLUXD_LOG_LEVEL: ${INFLUXD_LOG_LEVEL}
     ports:
-      - 1234:8086
+      - 8086:8086
     volumes:
       - influxdb-source:/var/lib/influxdb2
       - ./test/init-scripts:/docker-entrypoint-initdb.d
@@ -33,7 +33,7 @@ services:
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_ADMIN_TOKEN}
       INFLUXD_LOG_LEVEL: ${INFLUXD_LOG_LEVEL}
     ports:
-      - 1235:8086
+      - 8087:8086
     volumes:
       - influxdb-target:/var/lib/influxdb2  
     networks:
@@ -46,8 +46,8 @@ services:
       dockerfile: Dockerfile
     command: backup
     volumes:
-      - ./test/temp/current:/backups/current
-      - ./test/temp/archive:/backups/archive
+      - influxdb-backup-current:/backups/current
+      - influxdb-backup-archive:/backups/archive
     environment:
        INFLUX_HOST: http://source:${INFLUXDB_HTTP_PORT}
        INFLUX_ADMIN_TOKEN: ${INFLUXDB_ADMIN_TOKEN}
@@ -61,8 +61,8 @@ services:
       dockerfile: Dockerfile
     command: restore
     volumes:
-      - ./test/temp/current:/backups/current
-      - ./test/temp/archive:/backups/archive
+      - influxdb-backup-current:/backups/current
+      - influxdb-backup-archive:/backups/archive
     environment:
        INFLUX_HOST: http://target:${INFLUXDB_HTTP_PORT}
        INFLUX_ADMIN_TOKEN: ${INFLUXDB_ADMIN_TOKEN}

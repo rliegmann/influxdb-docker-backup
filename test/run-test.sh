@@ -46,12 +46,12 @@ sleep 2
 
 timestamp=$(date +%s)
 
-# Schreibe den Datensatz in die InfluxDB
+# Schreibe den Datensatz in die InfluxDB   (ToDo: Add this to test)
 #    influx write \
 #        --bucket test_db \
 #        --org myorg \
 #        --token IFw21qBbYfD8scQcVH7R25uB47jjsgHochQQ0kOly1UAVIFruk8DIKPUplQWJa4C \
-#        --host "http://192.168.178.20:1234" \
+#        --host "http://localhost:8086" \
 #        --precision s \
 #        "test_data,metric=percent_value value=144 $timestamp"
 
@@ -77,12 +77,13 @@ OLD_DATA=$(influx query '
 from(bucket: "test_db")
   |> range(start: '$queryTime', stop: '$queryStopTime')
   |> filter(fn: (r) => r._measurement == "test_data")
-  |> filter(fn: (r) => r["_field"] == "value")' --org myorg --host http://192.168.178.20:1234 --token IFw21qBbYfD8scQcVH7R25uB47jjsgHochQQ0kOly1UAVIFruk8DIKPUplQWJa4C -r)
+  |> filter(fn: (r) => r["_field"] == "value")' --org myorg --host http://localhost:8086 --token IFw21qBbYfD8scQcVH7R25uB47jjsgHochQQ0kOly1UAVIFruk8DIKPUplQWJa4C -r)
 
 if [ $? -eq 0 ]; then
     echo "Daten erfolgreich aus der alten InfluxDB abgefragt."
 else
     echo "Fehler bei der Abfrage der Daten aus der alten InfluxDB."
+    exit 1
    
 fi
 sleep 2
@@ -94,16 +95,17 @@ NEW_DATA=$(influx query '
 from(bucket: "test_db")
   |> range(start: '$queryTime', stop: '$queryStopTime')
   |> filter(fn: (r) => r._measurement == "test_data")
-  |> filter(fn: (r) => r["_field"] == "value")' --org myorg --host http://192.168.178.20:1235 --token IFw21qBbYfD8scQcVH7R25uB47jjsgHochQQ0kOly1UAVIFruk8DIKPUplQWJa4C -r)
+  |> filter(fn: (r) => r["_field"] == "value")' --org myorg --host http://localhost:8087 --token IFw21qBbYfD8scQcVH7R25uB47jjsgHochQQ0kOly1UAVIFruk8DIKPUplQWJa4C -r)
 
 if [ $? -eq 0 ]; then
     echo "Daten erfolgreich aus der neuen InfluxDB abgefragt."
 else
     echo "Fehler bei der Abfrage der Daten aus der neuen InfluxDB."
+    exit 1
   
 fi
 
-testFailed = true
+testFailed=true
 
 # Schritt 5: Vergleiche die Daten
 echo "Vergleiche die Daten aus beiden Datenbanken..."
@@ -128,7 +130,11 @@ fi
 
 docker compose -f ../compose-test.yml --env-file $env_file down source target backup restore -v
 
-rm -Rf ./temp
+ls -l
+
+rm -r temp
+
+ls -l
 
 
 if $testFailed; then
