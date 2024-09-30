@@ -1,1 +1,33 @@
+name: Test, Build, 
 
+on:
+  push:
+    branches:
+      - main  # Trigger on push to the main branch
+
+jobs:
+  # Job 1: Test Bash Script
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup InfluxDB
+        uses: influxdata/influxdb-action@v3
+        with:
+            influxdb_version: latest
+            influxdb_start: false
+        
+      - name: Run Test influx command
+        run: influx -h
+        
+      - name: Execute Bash Script
+        run: |
+          chmod +x ./test/run-test.sh  # Stellt sicher, dass das Skript ausführbar ist
+          cd ./test
+          ./run-test.sh  # Führt das Bash-Skript aus
+          
+      - name: Check if script succeeded
+        run: echo "Bash script executed successfully!"
