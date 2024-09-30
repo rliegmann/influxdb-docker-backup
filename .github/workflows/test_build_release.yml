@@ -12,16 +12,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup InfluxDB
         uses: RasmusLar/influxdb-action@v6
         with:
             influxdb_version: latest
-            influxdb_start: false
-        
-      - name: Run Test influx command
-        run: influx -h
+            influxdb_start: false      
         
       - name: Execute Bash Script
         run: |
