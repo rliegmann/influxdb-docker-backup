@@ -1,4 +1,4 @@
-name: Test, Build, 
+name: Test, Build and Push latest
 
 on:
   push:
