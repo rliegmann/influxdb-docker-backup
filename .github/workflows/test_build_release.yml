@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main  # Trigger on push to the main branch
+permissions:
+  contents: read
+  packages: write
+  actions: read
+
 
 jobs:
   # Job 1: Test Bash Script
