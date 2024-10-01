@@ -3,6 +3,10 @@
 A Docker container that saves an full Influxdb (v2) in files and then compresses them. Several versions can be maintained.
 
 
+> [!NOTE]  
+> This image is only available for the linux/amd64 and linux/arm64 platforms, as InfluxDB V2 requires a 64-bit operating system.
+
+
 # Usage
 ## Backup
 ```shell
