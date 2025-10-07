@@ -1,5 +1,7 @@
 #!/bin/bash
 
+readonly VERSION=0.0.0-dev  #Is automatically adjusted via the git tag version in the CI.
+
 set -e
 # Check to see what environment I'm running in 
 if [ -f /.dockerenv ]; then
