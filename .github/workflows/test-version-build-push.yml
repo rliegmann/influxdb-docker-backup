@@ -143,8 +143,7 @@ jobs:
 
           echo "Updating influxdb-to-file.sh with tag/branch $CURRENT_TAG"
           sed -i "s/^readonly VERSION=.*/readonly VERSION=\"$CURRENT_TAG\"/" influxdb-to-file.sh
-
-          exit 0
+         
           
       - name: Upload bumped influxdb-to-file.sh
         uses: actions/Upload-artifact@v4
