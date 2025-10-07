@@ -1,0 +1,196 @@
+name: Test, Version, Build, Push
+
+on:
+  push:
+    branches:
+      - 'feature/*'
+      - 'bug/*'
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  PLATFORMS:
+  LOCAL:
+
+jobs:
+  # ----------------------------------------------------
+  # 1. Tests
+  # ----------------------------------------------------
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest    
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Setup InfluxDB CLI
+        uses: RasmusLar/influxdb-action@v6
+        with:
+          influxdb_version: latest
+          influxdb_start: false
+
+      - name: Run Test
+        id: run-test
+        run: |
+          echo "🔍 Running tests..."
+          chmod +x ./test/run-test.sh  
+          cd ./test
+          ./run-test.sh  # Führt das Bash-Skript aus
+
+      - name: Stop on failed test for tags
+        if: ${{ failure() && startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          echo "❌ Tests failed on release tag. Stopping pipeline."
+          exit 1 
+
+  # ----------------------------------------------------
+  # 2. Version bumping
+  # ----------------------------------------------------
+  bump-version:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      tagged_version: ${{ steps.current_tag.outputs.tag }}
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4   
+        
+      - name: Get the current tag
+        id: current_tag
+        run: |
+          # Extrahiere den aktuellen Tag (z.B. v1.2.0)
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          echo "Current tag: $CURRENT_TAG"
+          
+          # Überprüfe, ob der Tag dem Schema v0.0.0[-suffix] entspricht
+          if [[ ! "$CURRENT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+            echo "Error: The tag $CURRENT_TAG does not match the required schema v0.0.0[-suffix]."
+            exit 1
+          fi
+
+          # Speichere den Tag in GITHUB_OUTPUT
+          echo "tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
+
+      - name: Get the previous tag
+        id: previous_tag
+        run: |
+          # Hol dir den CURRENT_TAG aus dem vorherigen Schritt
+          CURRENT_TAG="${{ steps.current_tag.outputs.tag }}"
+          
+          # Finde alle Tags und sortiere sie nach Erstellungsdatum
+          # Ignoriere den aktuellen Tag
+          PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -v "^$CURRENT_TAG$" | head -n 1)
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "No previous tag found."
+            PREVIOUS_TAG="v0.0.0"  # Wenn kein vorheriger Tag existiert, auf Version 0.0.0 setzen
+          fi
+          echo "Previous tag: $PREVIOUS_TAG"
+          
+          # Speichere den vorherigen Tag in GITHUB_OUTPUT
+          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+
+      - name: Compare tags
+        id: compare
+        run: |
+          CURRENT_TAG="${{ steps.current_tag.outputs.tag }}"
+          PREVIOUS_TAG="${{ steps.previous_tag.outputs.previous_tag }}"
+
+          # Entferne das "v" vor den Versionsnummern
+          CURRENT_TAG=${CURRENT_TAG#v}
+          PREVIOUS_TAG=${PREVIOUS_TAG#v}
+
+          # Funktion zum Vergleich von SemVer
+          version_gt() { 
+            test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"; 
+          }
+
+          # Vergleich der Versionen
+          if version_gt "$CURRENT_TAG" "$PREVIOUS_TAG"; then
+            echo "Success: Current tag ($CURRENT_TAG) is greater than previous tag ($PREVIOUS_TAG)."
+          else
+            echo "Error: Current tag ($CURRENT_TAG) is not greater than previous tag ($PREVIOUS_TAG)."
+            exit 1
+          fi
+
+      - name: Update Version in influxdb-to-file.sh
+        run: |
+          CURRENT_TAG="${{ steps.current_tag.outputs.tag}}"
+          PREVIOUS_TAG="${{ steps.previous_tag.outputs.previous_tag }}"
+
+          CURRENT_TAG="${CURRENT_TAG#v}"  # entfernt führendes 'v', falls vorhanden
+          PREVIOUS_TAG="${PREVIOUS_TAG#v}"  # optional für vorherigen Tag
+
+          echo "Updating influxdb-to-file.sh with tag $CURRENT_TAG"
+          sed -i "s/^readonly VERSION=.*/readonly VERSION=\"$CURRENT_TAG\"/" influxdb-to-file.sh
+          
+      - name: Upload bumped influxdb-to-file.sh
+        uses: actions/Upload-artifact@v4
+        with:
+          name: bumped_script_version
+          path: influxdb-to-file.sh
+
+
+
+          
+
+
+  # ----------------------------------------------------
+  # 3. Docker Build & Push
+  # ----------------------------------------------------
+  docker-build:
+    needs: bump-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4   
+
+      - name: Download bumped influxdb-to-file.sh
+        uses: actions/download-artifact@v4
+        with:
+          name: bumped_script_version
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+
+      - name: Determine environment (Local or github)           
+        run:  |
+          if [ "$ACT" = "true" ]; then
+            echo "LOCAL=true" >> $GITHUB_ENV
+            echo "PLATFORMS=linux/amd64" >> $GITHUB_ENV.  
+          else
+            echo "LOCAL=false" >> $GITHUB_ENV
+            echo "PLATFORMS=linux/amd64,linux/arm64" >> $GITHUB_ENV
+          fi
+          
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+     
+
+      - name: Build Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ env.PLATFORMS }}      
+          push: ${{ env.LOCAL != 'true' }}
+          load: ${{ env.LOCAL == 'true' }}
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ needs.bump-version.outputs.tagged_version }}
+            ${{ github.ref_type == 'tag' && format('ghcr.io/{0}:latest', github.repository) || '' }}
+           
+        
+      - name: Show local images (only fur act)
+        if: ${{ env.LOCAL == 'true' }}
+        run: docker images | grep rliegmann/influxdb-docker-backup
