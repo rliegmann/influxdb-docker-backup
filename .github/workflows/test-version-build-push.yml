@@ -185,7 +185,6 @@ jobs:
             echo "PLATFORMS=linux/amd64,linux/arm64" >> $GITHUB_ENV
           fi
           
-
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -202,18 +201,33 @@ jobs:
           echo "stripped_version=$VERSION" >> $GITHUB_OUTPUT
 
 
+    # ******************** LOCAL ***************
+      - name: Build Docker Image for Local (only for act)
+        uses: docker/build-push-action@v6
+        if: ${{ env.LOCAL == 'true' }} 
+        with:
+          context: .
+          platforms: ${{ env.PLATFORMS }} 
+          load: true
+          tags: |
+            ${{ github.repository }}:${{ steps.strip_v.outputs.stripped_version }}
+            ${{ github.ref_type == 'tag' && format('{0}:latest', github.repository) || '' }}
+
+
+      - name: Show local images (only for act)
+        if: ${{ env.LOCAL == 'true' }}
+        run: docker images | grep rliegmann/influxdb-docker-backup
+
+
+
+
       - name: Build Docker Image
         uses: docker/build-push-action@v6
+        if: ${{ env.LOCAL == 'false' }} 
         with:
           context: .
           platforms: ${{ env.PLATFORMS }}      
-          push: ${{ env.LOCAL != 'true' }}
-          load: ${{ env.LOCAL == 'true' }}
+          push: true
           tags: |
             ghcr.io/${{ github.repository }}:${{ steps.strip_v.outputs.stripped_version }}
             ${{ github.ref_type == 'tag' && format('ghcr.io/{0}:latest', github.repository) || '' }}
-           
-        
-      - name: Show local images (only fur act)
-        if: ${{ env.LOCAL == 'true' }}
-        run: docker images | grep rliegmann/influxdb-docker-backup
