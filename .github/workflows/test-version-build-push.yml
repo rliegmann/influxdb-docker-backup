@@ -184,13 +184,6 @@ jobs:
             echo "LOCAL=false" >> $GITHUB_ENV
             echo "PLATFORMS=linux/amd64,linux/arm64" >> $GITHUB_ENV
           fi
-          
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
      
       - name: Strip leading v from app_version
         id: strip_v
@@ -218,8 +211,15 @@ jobs:
         if: ${{ env.LOCAL == 'true' }}
         run: docker images | grep rliegmann/influxdb-docker-backup
 
+        
+     # ******************** github ***************
+      - name: Login to GHCR
+        uses: docker/login-action@v3
 
-
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Docker Image
         uses: docker/build-push-action@v6
