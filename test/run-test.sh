@@ -26,7 +26,7 @@ cat<< "EOF"
 ---------------------------------------------------------
 EOF
 
-docker compose -f ../compose-test.yml --env-file $env_file up backup 
+docker compose -f ../compose-test.yml --env-file $env_file up --build backup 
 if [ $? -ne 0 ]; then
     echo "docker-compose up ist fehlgeschlagen."
     # Führe zusätzliche Aktionen bei Fehler aus
@@ -48,7 +48,7 @@ cat<< "EOF"
  ------------------------------------------------------
 EOF
 
-docker compose -f ../compose-test.yml --env-file $env_file up restore 
+docker compose -f ../compose-test.yml --env-file $env_file up --build restore 
 if [ $? -ne 0 ]; then
     echo "docker-compose up ist fehlgeschlagen."
     # Führe zusätzliche Aktionen bei Fehler aus
